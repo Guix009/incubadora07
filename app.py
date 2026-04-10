@@ -3,6 +3,10 @@ from flask_cors import CORS
 import psycopg2
 import os
 
+# =====================
+# APP
+# =====================
+
 app = Flask(__name__)
 CORS(app)
 
@@ -12,13 +16,15 @@ CORS(app)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL não encontrado nas variáveis de ambiente")
+
 def conectar_db():
     return psycopg2.connect(DATABASE_URL)
 
 def criar_tabela():
     conn = conectar_db()
     cursor = conn.cursor()
-
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ideias (
             id SERIAL PRIMARY KEY,
@@ -33,15 +39,23 @@ def criar_tabela():
             data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
-
     conn.commit()
     cursor.close()
     conn.close()
 
+# cria a tabela no startup (leve e seguro)
 criar_tabela()
 
 # =====================
-# ROTAS
+# ROTAS BÁSICAS
+# =====================
+
+@app.route("/", methods=["GET"])
+def home():
+    return {"status": "ok", "service": "Incubadora API"}, 200
+
+# =====================
+# IDEIAS – OPERADOR
 # =====================
 
 @app.route("/api/ideias", methods=["POST"])
@@ -50,7 +64,6 @@ def enviar_ideia():
 
     conn = conectar_db()
     cursor = conn.cursor()
-
     cursor.execute("""
         INSERT INTO ideias (nome, matricula, area, supervisor, descricao)
         VALUES (%s, %s, %s, %s, %s)
@@ -61,28 +74,21 @@ def enviar_ideia():
         dados["supervisor"],
         dados["descricao"]
     ))
-
     conn.commit()
     cursor.close()
     conn.close()
 
     return jsonify({"mensagem": "Ideia enviada com sucesso"}), 201
 
-# =====================
-# LISTAR IDEIAS (OPERADORES / RANKING)
-# =====================
-
 @app.route("/api/ideias", methods=["GET"])
 def listar_ideias():
     conn = conectar_db()
     cursor = conn.cursor()
-
     cursor.execute("""
         SELECT id, nome, area, descricao, status, pontuacao
         FROM ideias
         ORDER BY data_criacao DESC
     """)
-
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -98,28 +104,22 @@ def listar_ideias():
             "pontuacao": r[5]
         })
 
-    return jsonify(ideias)
+    return jsonify(ideias), 200
 
 # =====================
-# LISTAR IDEIAS (PERFORMANCE)
+# PERFORMANCE
 # =====================
-@app.route("/")
-def home():
-    return "Incubadora API rodando"
-
 
 @app.route("/api/performance/ideias", methods=["GET"])
 def ideias_performance():
     conn = conectar_db()
     cursor = conn.cursor()
-
     cursor.execute("""
         SELECT id, nome, matricula, area, supervisor,
                descricao, status, pontuacao, avaliador
         FROM ideias
         ORDER BY data_criacao DESC
     """)
-
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -138,11 +138,7 @@ def ideias_performance():
             "avaliador": r[8]
         })
 
-    return jsonify(ideias)
-
-# =====================
-# AVALIAR IDEIA
-# =====================
+    return jsonify(ideias), 200
 
 @app.route("/api/performance/avaliar", methods=["POST"])
 def avaliar_ideia():
@@ -150,7 +146,6 @@ def avaliar_ideia():
 
     conn = conectar_db()
     cursor = conn.cursor()
-
     cursor.execute("""
         UPDATE ideias
         SET status = %s,
@@ -163,36 +158,22 @@ def avaliar_ideia():
         dados["avaliador"],
         dados["id"]
     ))
-
     conn.commit()
     cursor.close()
     conn.close()
 
     return jsonify({"mensagem": "Ideia avaliada com sucesso"}), 200
 
-# =====================
-# EXCLUIR IDEIA
-# =====================
-
 @app.route("/api/performance/excluir/<int:ideia_id>", methods=["DELETE"])
 def excluir_ideia(ideia_id):
     conn = conectar_db()
     cursor = conn.cursor()
-
     cursor.execute(
         "DELETE FROM ideias WHERE id = %s",
         (ideia_id,)
     )
-
     conn.commit()
     cursor.close()
     conn.close()
 
-    return jsonify({"mensagem": "Ideia excluída"}), 200
-
-# =====================
-# START (RENDER)
-# =====================
-
-if __name__ == "__main__":
-    app.run()
+    return jsonify({"mensagem": "Ideia excluída com sucesso"}), 200
