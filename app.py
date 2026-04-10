@@ -103,6 +103,10 @@ def listar_ideias():
 # =====================
 # LISTAR IDEIAS (PERFORMANCE)
 # =====================
+@app.route("/")
+def home():
+    return "Incubadora API rodando"
+
 
 @app.route("/api/performance/ideias", methods=["GET"])
 def ideias_performance():
