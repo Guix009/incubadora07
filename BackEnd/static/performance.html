@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Performance - Gestão de Ideias</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+<script>
+(function () {
+    const senha = prompt("🔒 Área restrita\nDigite a senha da Performance:");
+
+    if (senha !== "performance123") {
+        window.location.href = "/";
+        throw new Error("Acesso negado");
+    }
+})();
+</script>
+
+<nav class="navbar">
+    <div class="logo">Incubadora Nissan</div>
+</nav>
+
+<main>
+
+<div class="page-header">
+    <h2>Painel da Performance</h2>
+    <p>Gestão e avaliação das ideias</p>
+</div>
+
+<div class="page-content performance-panel">
+
+    <button class="btn btn-voltar" onclick="history.back()">⬅ Voltar</button>
+
+    <!-- FILTROS -->
+    <div class="performance-filtros">
+        <input id="filtroNome" placeholder="Buscar por nome ou matrícula">
+        <select id="filtroStatus">
+            <option value="">Todos os status</option>
+            <option>Submetida</option>
+            <option>Aprovada</option>
+            <option>Reprovada</option>
+        </select>
+    </div>
+
+    <!-- TABELA -->
+    <table class="tabela-performance">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Matrícula</th>
+                <th>Área</th>
+                <th>Ideia</th>
+                <th>Status</th>
+                <th>Pontuação</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody id="tabela"></tbody>
+    </table>
+
+</div>
+
+</main>
+
+<footer class="footer">
+    © 2026 Nissan - Paint Shop Performance
+</footer>
+
+<script>
+let ideias = [];
+
+fetch("/api/performance/ideias")
+  .then(r => r.json())
+  .then(data => {
+    ideias = data;
+    render();
+  });
+
+function render() {
+    const nome = filtroNome.value.toLowerCase();
+    const status = filtroStatus.value;
+
+    tabela.innerHTML = "";
+
+    ideias
+      .filter(i =>
+          (!nome || i.nome.toLowerCase().includes(nome) || i.matricula.includes(nome)) &&
+          (!status || i.status === status)
+      )
+      .forEach(i => {
+        tabela.innerHTML += `
+        <tr>
+            <td>${i.id}</td>
+            <td>${i.nome}</td>
+            <td>${i.matricula}</td>
+            <td>${i.area}</td>
+            <td>${i.descricao}</td>
+            <td>
+                <select id="status-${i.id}">
+                    <option ${i.status==="Submetida"?"selected":""}>Submetida</option>
+                    <option ${i.status==="Aprovada"?"selected":""}>Aprovada</option>
+                    <option ${i.status==="Reprovada"?"selected":""}>Reprovada</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" value="${i.pontuacao || 0}" id="pont-${i.id}">
+            </td>
+            <td>
+                <button onclick="salvar(${i.id})">💾</button>
+                <button onclick="excluir(${i.id})">🗑️</button>
+            </td>
+        </tr>`;
+      });
+}
+
+filtroNome.oninput = render;
+filtroStatus.onchange = render;
+
+function salvar(id) {
+    fetch("/api/performance/avaliar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            id,
+            status: document.getElementById(`status-${id}`).value,
+            pontuacao: document.getElementById(`pont-${id}`).value,
+            avaliador: "Performance"
+        })
+    }).then(() => {
+        Swal.fire("✅ Atualizado", "Ideia atualizada com sucesso", "success");
+    });
+}
+
+function excluir(id) {
+    Swal.fire({
+        title: "Excluir ideia?",
+        text: "Essa ação não pode ser desfeita",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#C5002A",
+        cancelButtonText: "Cancelar",
+        confirmButtonText: "Excluir"
+    }).then(result => {
+        if (result.isConfirmed) {
+            fetch(`/api/performance/excluir/${id}`, { method: "DELETE" })
+              .then(() => location.reload());
+        }
+    });
+}
+</script>
+
+</body>
+</html>

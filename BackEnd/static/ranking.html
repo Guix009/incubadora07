@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Ranking de Ideias</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">Incubadora Nissan</div>
+    <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/formulario">Formulário</a></li>
+        <li><a href="/ranking">Ranking</a></li>
+        <li><a href="/contato">Contato</a></li>
+    </ul>
+</nav>
+
+<main>
+
+    <div class="page-header">
+        <h2>Ranking de Ideias</h2>
+        <p>Ideias aprovadas com maior impacto</p>
+    </div>
+
+    <div class="ranking-container">
+        <div class="ranking-list" id="ranking"></div>
+    </div>
+
+</main>
+
+<footer class="footer">
+    <p>© 2026 Nissan - Paint Shop Performance</p>
+</footer>
+
+<script>
+fetch("/api/ideias")
+  .then(res => res.json())
+  .then(data => {
+
+    const aprovadas = data
+      .filter(i => i.status === "Aprovada")
+      .sort((a, b) => b.pontuacao - a.pontuacao);
+
+    const container = document.getElementById("ranking");
+    container.innerHTML = "";
+
+    if (aprovadas.length === 0) {
+        container.innerHTML = "<p>Nenhuma ideia aprovada ainda.</p>";
+        return;
+    }
+
+    aprovadas.forEach((ideia, index) => {
+        const badgeClass =
+            index === 0 ? "gold" :
+            index === 1 ? "silver" :
+            index === 2 ? "bronze" : "";
+
+        const div = document.createElement("div");
+        div.className = "ranking-card";
+
+        div.innerHTML = `
+            <span class="badge ${badgeClass}">
+                ${index + 1}º
+            </span>
+            <div>
+                <h4>${ideia.descricao}</h4>
+                <p>${ideia.nome} • ${ideia.area}</p>
+                <p><strong>Pontuação:</strong> ${ideia.pontuacao}</p>
+            </div>
+        `;
+
+        container.appendChild(div);
+    });
+});
+</script>
+
+</body>
+</html>
