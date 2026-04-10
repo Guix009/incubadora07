@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 import psycopg2
 import os
 
@@ -10,6 +11,9 @@ import os
 app = Flask(__name__)
 CORS(app)
 
+# ✅ ESSENCIAL NO RAILWAY (proxy reverso)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 # =====================
 # BANCO DE DADOS
 # =====================
@@ -17,15 +21,15 @@ CORS(app)
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL não encontrado nas variáveis de ambiente")
+    raise RuntimeError("❌ DATABASE_URL não encontrada nas variáveis de ambiente")
 
 def conectar_db():
     return psycopg2.connect(DATABASE_URL)
 
 def criar_tabela():
     conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("""
+    cur = conn.cursor()
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS ideias (
             id SERIAL PRIMARY KEY,
             nome TEXT NOT NULL,
@@ -40,19 +44,19 @@ def criar_tabela():
         );
     """)
     conn.commit()
-    cursor.close()
+    cur.close()
     conn.close()
 
-# cria a tabela no startup (leve e seguro)
+# ✅ cria tabela no startup (leve e seguro)
 criar_tabela()
 
 # =====================
-# ROTAS BÁSICAS
+# ✅ HEALTHCHECK (OBRIGATÓRIO NO RAILWAY)
 # =====================
 
-@app.route("/", methods=["GET"])
+@app.route("/", methods=["GET", "HEAD"])
 def home():
-    return {"status": "ok", "service": "Incubadora API"}, 200
+    return "OK", 200
 
 # =====================
 # IDEIAS – OPERADOR
@@ -63,8 +67,8 @@ def enviar_ideia():
     dados = request.json
 
     conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("""
+    cur = conn.cursor()
+    cur.execute("""
         INSERT INTO ideias (nome, matricula, area, supervisor, descricao)
         VALUES (%s, %s, %s, %s, %s)
     """, (
@@ -75,7 +79,7 @@ def enviar_ideia():
         dados["descricao"]
     ))
     conn.commit()
-    cursor.close()
+    cur.close()
     conn.close()
 
     return jsonify({"mensagem": "Ideia enviada com sucesso"}), 201
@@ -83,14 +87,14 @@ def enviar_ideia():
 @app.route("/api/ideias", methods=["GET"])
 def listar_ideias():
     conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("""
+    cur = conn.cursor()
+    cur.execute("""
         SELECT id, nome, area, descricao, status, pontuacao
         FROM ideias
         ORDER BY data_criacao DESC
     """)
-    rows = cursor.fetchall()
-    cursor.close()
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
 
     ideias = []
@@ -113,15 +117,15 @@ def listar_ideias():
 @app.route("/api/performance/ideias", methods=["GET"])
 def ideias_performance():
     conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("""
+    cur = conn.cursor()
+    cur.execute("""
         SELECT id, nome, matricula, area, supervisor,
                descricao, status, pontuacao, avaliador
         FROM ideias
         ORDER BY data_criacao DESC
     """)
-    rows = cursor.fetchall()
-    cursor.close()
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
 
     ideias = []
@@ -145,8 +149,8 @@ def avaliar_ideia():
     dados = request.json
 
     conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("""
+    cur = conn.cursor()
+    cur.execute("""
         UPDATE ideias
         SET status = %s,
             pontuacao = %s,
@@ -159,7 +163,7 @@ def avaliar_ideia():
         dados["id"]
     ))
     conn.commit()
-    cursor.close()
+    cur.close()
     conn.close()
 
     return jsonify({"mensagem": "Ideia avaliada com sucesso"}), 200
@@ -167,13 +171,10 @@ def avaliar_ideia():
 @app.route("/api/performance/excluir/<int:ideia_id>", methods=["DELETE"])
 def excluir_ideia(ideia_id):
     conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        "DELETE FROM ideias WHERE id = %s",
-        (ideia_id,)
-    )
+    cur = conn.cursor()
+    cur.execute("DELETE FROM ideias WHERE id = %s", (ideia_id,))
     conn.commit()
-    cursor.close()
+    cur.close()
     conn.close()
 
     return jsonify({"mensagem": "Ideia excluída com sucesso"}), 200
