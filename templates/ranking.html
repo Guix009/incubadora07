@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <title>Ranking de Ideias</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/base.css">
+    <link rel="stylesheet" href="/static/rank.css">
 </head>
 <body>
 
@@ -24,9 +25,7 @@
         <p>Ideias aprovadas com maior impacto</p>
     </div>
 
-    <div class="ranking-container">
-        <div id="ranking" class="ranking-list"></div>
-    </div>
+    <div class="ranking-container" id="ranking"></div>
 </main>
 
 <footer class="footer">
@@ -37,27 +36,24 @@
 fetch("/api/ideias")
 .then(r => r.json())
 .then(data => {
+    const ranking = document.getElementById("ranking");
     const aprovadas = data
         .filter(i => i.status === "Aprovada")
-        .sort((a,b) => b.pontuacao - a.pontuacao);
-
-    const ranking = document.getElementById("ranking");
-    ranking.innerHTML = "";
+        .sort((a, b) => b.pontuacao - a.pontuacao);
 
     if (!aprovadas.length) {
-        ranking.innerHTML = "<p>Nenhuma ideia aprovada.</p>";
+        ranking.innerHTML = "<p style='text-align:center'>Nenhuma ideia aprovada.</p>";
         return;
     }
 
-    aprovadas.forEach((i, idx) => {
+    aprovadas.forEach(i => {
         ranking.innerHTML += `
-        <div class="ranking-card">
-            <span class="badge">${idx+1}º</span>
-            <div>
-                <h4>${i.descricao}</h4>
-                <p>${i.nome} • ${i.area}</p>
-                <strong>Pontuação: ${i.pontuacao}</strong>
+        <div class="ranking-item">
+            <div class="ranking-text">
+                <strong>${i.descricao}</strong>
+                <span>${i.nome} • ${i.area}</span>
             </div>
+            <div class="ranking-score">${i.pontuacao}</div>
         </div>`;
     });
 });
